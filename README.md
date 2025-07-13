@@ -1,76 +1,85 @@
-# 🧩 CRTeam Sistema de Telemetría
 
-## Cableado
+# CRTeam - Sistema de Telemetría
 
-### 🔹 Raspberry Pi + MCP2515 + Nextion LCD
+Sistema modular para telemetría en vehículos, que integra sensores de aceleración y comunicación CAN. Utiliza Raspberry Pi, Arduino Nano y Teensy para la adquisición y transmisión de datos, mostrando la información en una pantalla Nextion LCD. El sistema permite monitoreo en tiempo real y es fácilmente adaptable a diferentes configuraciones de hardware.
 
-#### ✅ Summary
-Este circuito conecta una **Raspberry Pi 3B+** con un controlador **CAN MCP2515** y una pantalla táctil **Nextion LCD 2.4"**. La Raspberry Pi gestiona la comunicación CAN y la interfaz de usuario a través de la pantalla.
+1. [Cableado principal](#cableado-principal)
+   1. [Raspberry Pi + MCP2515 + Nextion LCD](#raspberry-pi--mcp2515--nextion-lcd)
+   2. [Arduino Nano + Teensy 4.1 + MPU6050](#arduino-nano--teensy-41--mpu6050)
+2. [Códigos y librerías](#códigos-y-librerías)
 
-#### 🧰 Componentes
+## Cableado principal
+
+### Raspberry Pi + MCP2515 + Nextion LCD
+
+Conecta la Raspberry Pi 3B+ al controlador CAN MCP2515 y a la pantalla Nextion LCD 2.4". La Pi gestiona la comunicación CAN y la pantalla.
+
+**Componentes:**
+
 - Raspberry Pi 3B+
-- MCP2515 (Controlador CAN)
-- Pantalla táctil Nextion 2.4"
+- MCP2515
+- Nextion LCD 2.4"
 
-#### 🔌 Conexiones
+**Conexiones:**
+![Diagrama](esquemas-conexiones/raspberry.png)
 
-![Diagrama Raspberry + MCP2515 + Nextion](CRTeam-Conexiones/Conexiones-Raspberry.png)
-
-| Raspberry Pi GPIO        | Conectado a                   | Componente             |
-|--------------------------|-------------------------------|------------------------|
-| 3.3V                     | VCC                           | MCP2515                |
-| 5V                       | VCC                           | Nextion LCD            |
-| GND                      | GND                           | MCP2515 & Nextion LCD  |
-| GPIO 11 (SCLK - SPI0)    | SCK                           | MCP2515                |
-| GPIO 10 (MOSI - SPI0)    | SI                            | MCP2515                |
-| GPIO 09 (MISO - SPI0)    | SO                            | MCP2515                |
-| GPIO 8  (CE0 - SPI0 CS)  | CS                            | MCP2515                |
-| GPIO 25                  | INT                           | MCP2515                |
-| GPIO 17 (CE1 - SPI1)     | TX                            | Nextion LCD            |
-| GPIO 27                  | RX                            | Nextion LCD            |
+| Pi GPIO | MCP2515/Nextion | Componente |
+| ------- | --------------- | ---------- |
+| 3.3V    | VCC             | MCP2515    |
+| 5V      | VCC             | Nextion    |
+| GND     | GND             | Ambos      |
+| 11      | SCK             | MCP2515    |
+| 10      | SI              | MCP2515    |
+| 9       | SO              | MCP2515    |
+| 8       | CS              | MCP2515    |
+| 25      | INT             | MCP2515    |
+| 17      | TX              | Nextion    |
+| 27      | RX              | Nextion    |
 
 ---
 
-### 🔹 Arduino Nano + Teensy 4.1 + MPU6050 Sensors
+### Arduino Nano + Teensy 4.1 + MPU6050
 
-#### ✅ Summary
-Este circuito usa un **Arduino Nano** y un **Teensy 4.1+** para leer datos de tres sensores **MPU6050** (acelerómetro + giroscopio). El Nano gestiona un sensor y el Teensy los otros dos, compartiendo líneas I2C para cada par.
+Lee datos de tres sensores MPU6050 (acelerómetro + giroscopio). El Nano gestiona uno y el Teensy dos, usando I2C compartido.
 
-#### 🧰 Componentes
+**Componentes:**
 
 - Arduino Nano
-- MPU6050 (acelerómetro + giroscopio)
-- Teensy 3.5
+- Teensy 3.5/4.1
+- MPU6050
 
-### 🔌 Conexiones
+**Conexiones:**
+![Diagrama](esquemas-conexiones/acelerometros.png)
 
-![Diagrama Teensy + Nano + MPU6050](CRTeam-Conexiones/Conexiones-Acelerometros.png)
+**Nano → MPU6050:**
 
-#### Arduino Nano → MPU6050 (Sensor 1)
-| Arduino Nano | MPU6050 |
-|--------------|---------|
-| 5V           | VCC     |
-| GND          | GND     |
-| A5           | SCL     |
-| A4           | SDA     |
+| Nano | MPU6050 |
+| ---- | ------- |
+| 5V   | VCC     |
+| GND  | GND     |
+| A5   | SCL     |
+| A4   | SDA     |
 
-#### Teensy 4.1+ → MPU6050 (Sensor 2 & 3)
-| Teensy Pin   | MPU6050 (1) | MMPU6050 (2) |
-|--------------|-------------|--------------|
-| Pin 64 (5V)  | VCC & INT   | VCC          |
-| Pin 12 (GND) | GND         | GND & INT    |
-| Pin 57       | SCL         | SCL          |
-| Pin 56       | SDA         | SDA          |
+**Teensy → MPU6050:**
+
+| Teensy   | MPU6050 (1) | MPU6050 (2) |
+| -------- | ----------- | ----------- |
+| 64 (5V)  | VCC & INT   | VCC         |
+| 12 (GND) | GND         | GND & INT   |
+| 57       | SCL         | SCL         |
+| 56       | SDA         | SDA         |
 
 ---
 
-## ⚙️ Códigos del los componentes
+## Códigos y librerías
 
-### 📦 Librerías Arduino (Sender & Receiver)
-- `ArduinoJson`
-- `mrf24_lib`
+**Arduino (emisor/receptor):**
 
-### 📦 Librerías Teensy (Acelerómetro)
-- `ACAN`
-- `Madgwick`
-- `MPU6050`
+- ArduinoJson
+- mrf24_lib
+
+**Teensy (acelerómetro):**
+
+- ACAN
+- Madgwick
+- MPU6050
