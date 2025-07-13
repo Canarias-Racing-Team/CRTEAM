@@ -64,8 +64,8 @@ Lee datos de tres sensores MPU6050 (acelerómetro + giroscopio). El Nano gestion
 
 | Teensy   | MPU6050 (1) | MPU6050 (2) |
 | -------- | ----------- | ----------- |
-| 64 (5V)  | VCC & INT   | VCC         |
-| 12 (GND) | GND         | GND & INT   |
+| 64 (5V)  | VCC & AD0   | VCC         |
+| 12 (GND) | GND         | GND & AD0   |
 | 57       | SCL         | SCL         |
 | 56       | SDA         | SDA         |
 
