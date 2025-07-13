@@ -14,7 +14,7 @@ Este circuito conecta una **Raspberry Pi 3B+** con un controlador **CAN MCP2515*
 
 #### 🔌 Conexiones
 
-![Diagrama Raspberry + MCP2515 + Nextion](Conexiones-Raspberry.png)
+![Diagrama Raspberry + MCP2515 + Nextion](CRTeam-Conexiones/Conexiones-Raspberry.png)
 
 | Raspberry Pi GPIO        | Conectado a                   | Componente             |
 |--------------------------|-------------------------------|------------------------|
@@ -44,7 +44,7 @@ Este circuito usa un **Arduino Nano** y un **Teensy 4.1+** para leer datos de tr
 
 ### 🔌 Conexiones
 
-![Diagrama Teensy + Nano + MPU6050](Conexiones-Acelerometros.png)
+![Diagrama Teensy + Nano + MPU6050](CRTeam-Conexiones/Conexiones-Acelerometros.png)
 
 #### Arduino Nano → MPU6050 (Sensor 1)
 | Arduino Nano | MPU6050 |
