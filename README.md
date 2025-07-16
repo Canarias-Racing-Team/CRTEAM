@@ -6,7 +6,8 @@ Sistema modular para telemetría en vehículos, que integra sensores de acelerac
 1. [Cableado principal](#cableado-principal)
    1. [Raspberry Pi + MCP2515 + Nextion LCD](#raspberry-pi--mcp2515--nextion-lcd)
    2. [Arduino Nano + Teensy 4.1 + MPU6050](#arduino-nano--teensy-41--mpu6050)
-2. [Códigos y librerías](#códigos-y-librerías)
+2. [Versiones de acelerómetro \& emisor](#versiones-de-acelerómetro--emisor)
+3. [Códigos y librerías](#códigos-y-librerías)
 
 ## Cableado principal
 
@@ -68,6 +69,15 @@ Lee datos de tres sensores MPU6050 (acelerómetro + giroscopio). El Nano gestion
 | 12 (GND) | GND         | GND & AD0   |
 | 57       | SCL         | SCL         |
 | 56       | SDA         | SDA         |
+
+---
+
+## Versiones de acelerómetro & emisor
+
+Hay dos versiones del código:
+
+- **v0**: funciona correctamente, la integración y el envío de datos son estables.
+- **v1**: presenta problemas con la corrección de gravedad, por lo que se recomienda usar la versión 0.
 
 ---
 

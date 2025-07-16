@@ -1,36 +1,54 @@
+
+#include <ArduinoJson.h>
 #include <MPU6050.h>
 #include <MadgwickAHRS.h>
+#include <SPI.h>
 #include <Wire.h>
+#include <mrf24j.h>
 
-#define DEBUG true  // habilita/deshabilita los mensajes por el monitor serie
-#define NUM_SENSORES 1     // número de acelerómetros
-#define TIEMPO_REPOSO 100  // tiempo en ms en reposo antes de resetear velocidad
+#define DEBUG true  // habilita /deshabilita los mensajes por el monitor serie
+#define NUM_SENSORES 2  // numero de acelerómetros
+#define TIEMPO_REPOSO \
+  100  // ms (tiempo mínimo en reposo para resetear velocidad)
 
 struct DatosMPU {
-  float ax, ay, az;  // aceleración corregida
+  float ax, ay, az;  // aceleracion
   float gx, gy, gz;  // giroscopio
-  float ux, uy,
-      uz;  // umbrales de ruido (se puede usar si no se corrige gravedad)
+  float ux, uy, uz;  // umbrales de ruido
 };
 
 struct Velocidad {
-  float vx, vy, vz;
+  float vx, vy, vz;  // velocidades de cada eje
 };
 
 MPU6050 sensores[NUM_SENSORES];
 Madgwick filtros[NUM_SENSORES];
 DatosMPU datos[NUM_SENSORES + 1];  // +1 para promedio
 DatosMPU calibracion[NUM_SENSORES];
+
 Velocidad velocidad;
 
-uint8_t direcciones[NUM_SENSORES] = {0x68, 0x69}; // direcciones I2C de los sensores
+// Pines: reset, CS, interrupt
+Mrf24j mrf(6, 9, 2);
+
+uint8_t direcciones[NUM_SENSORES] = {0x68, 0x69};
 unsigned long tiempoReposo = 0;
 bool enReposo = false;
 unsigned long tAnterior;
 
 void setup() {
   Serial.begin(115200);
-  Wire.begin();
+  Wire.begin();  // inicializa I2C
+
+  // Inicialización Mrf24j
+  mrf.reset();
+  mrf.init();
+  // mrf.set_channel(12);
+  mrf.set_pan(0x1234);          // PAN ID compartido
+  mrf.address16_write(0x6002);  // dirección propia (AD1 o AD2)
+  mrf.set_promiscuous(true);
+  // mrf.set_bufferPHY(false);
+  Serial.println("Emisor AD1 listo");
 
   debug("Inicializando...");
   calibrar(NUM_SENSORES);
@@ -42,23 +60,32 @@ void setup() {
 void loop() {
   for (int i = 0; i < NUM_SENSORES; i++) {
     leer_datos(i);
-    corregir_gravedad(i);  // Corrige aceleración quitando gravedad
   }
 
   obtener_promedio();
   calcular_velocidad();
   enviar_datos();
-  delay(100);  // 10 Hz
+
+  // Enviar datos por radio usando Mrf24j
+  // Usamos los valores promedio de aceleración
+  DatosMPU &avg = datos[NUM_SENSORES];
+  String mensaje = "AD1,";
+  mensaje += "x:" + String(avg.ax, 3) + ",";
+  mensaje += "y:" + String(avg.ay, 3) + ",";
+  mensaje += "z:" + String(avg.az, 3);
+  mrf.send16(0x6003, (char *)mensaje.c_str());
+  Serial.println(mensaje);
+
+  delay(100);  // 100 Hz
 }
 
 void leer_datos(int i) {
   int16_t ax, ay, az, gx, gy, gz;
   sensores[i].getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
 
-  float aScale = 9.81 / 16384.0;   // factor de escala del acelerómetro
-  float gScale = 250.0 / 32768.0;  // factor de escala del giroscopio
+  float aScale = 9.81 / 16384.0;
+  float gScale = 250.0 / 32768.0;
 
-  // Lectura bruta escalada y calibrada
   datos[i].ax = ax * aScale - calibracion[i].ax;
   datos[i].ay = ay * aScale - calibracion[i].ay;
   datos[i].az = az * aScale - calibracion[i].az;
@@ -67,33 +94,25 @@ void leer_datos(int i) {
   datos[i].gy = gy * gScale;
   datos[i].gz = gz * gScale;
 
-  // Actualiza filtro Madgwick
   filtros[i].updateIMU(datos[i].gx * DEG_TO_RAD, datos[i].gy * DEG_TO_RAD,
                        datos[i].gz * DEG_TO_RAD, datos[i].ax, datos[i].ay,
                        datos[i].az);
 
-  // Sin umbrales aquí — los quitamos al corregir gravedad
+  if (fabs(datos[i].ax) < calibracion[i].ux) datos[i].ax = 0;
+  if (fabs(datos[i].ay) < calibracion[i].uy) datos[i].ay = 0;
+  if (fabs(datos[i].az) < calibracion[i].uz) datos[i].az = 0;
 
-  debug("Sensor " + String(i) + " ax=" + String(datos[i].ax, 2) +
-        " ay=" + String(datos[i].ay, 2) + " az=" + String(datos[i].az, 2));
-}
-
-void corregir_gravedad(int i) {
-  // Usa orientación del filtro para eliminar la gravedad
-  float q0 = filtros[i].q0;
-  float q1 = filtros[i].q1;
-  float q2 = filtros[i].q2;
-  float q3 = filtros[i].q3;
-
-  // Rotación inversa del vector de aceleración (del sistema a mundo)
-  float gx = 2 * (q1 * q3 - q0 * q2);
-  float gy = 2 * (q0 * q1 + q2 * q3);
-  float gz = q0 * q0 - q1 * q1 - q2 * q2 + q3 * q3;
-
-  // Corregir aceleración: quitar la gravedad en el eje Z
-  datos[i].ax -= gx * 9.81;
-  datos[i].ay -= gy * 9.81;
-  datos[i].az -= gz * 9.81;
+  String msg = "Sensor " + String(i);
+  msg += " | Raw: ax=" + String(ax);
+  msg += ", ay=" + String(ay);
+  msg += ", az=" + String(az);
+  msg += " | Calibrated: ax=" + String(datos[i].ax, 3);
+  msg += ", ay=" + String(datos[i].ay, 3);
+  msg += ", az=" + String(datos[i].az, 3);
+  msg += " | Gyro: gx=" + String(datos[i].gx, 3);
+  msg += ", gy=" + String(datos[i].gy, 3);
+  msg += ", gz=" + String(datos[i].gz, 3);
+  debug(msg);
 }
 
 void obtener_promedio() {
@@ -116,10 +135,7 @@ void calcular_velocidad() {
 
   DatosMPU &a = datos[NUM_SENSORES];
 
-  float magnitud = sqrt(a.ax * a.ax + a.ay * a.ay + a.az * a.az);
-
-  // Detectar reposo con tolerancia pequeña
-  if (magnitud < 0.1) {
+  if ((a.ax + a.ay + a.az) == 0) {
     if (!enReposo) {
       tiempoReposo = tActual;
       enReposo = true;
@@ -131,7 +147,6 @@ void calcular_velocidad() {
     enReposo = false;
   }
 
-  // Integración de velocidad
   velocidad.vx += a.ax * dt;
   velocidad.vy += a.ay * dt;
   velocidad.vz += a.az * dt;
@@ -151,7 +166,7 @@ void enviar_datos() {
   String msg = "Velocidad (m/s): X=" + String(velocidad.vx, 2);
   msg += " Y=" + String(velocidad.vy, 2);
   msg += " Z=" + String(velocidad.vz, 2);
-  msg += " | Total (km/h)=" + String(v_total * 3.6, 2);
+  msg += " | Velocidad (km/h)=" + String(v_total * 3.6, 2);  // km/h
   debug(msg);
 }
 
@@ -159,11 +174,10 @@ void calibrar(int num) {
   for (int i = 0; i < num; i++) {
     sensores[i] = MPU6050(direcciones[i]);
     sensores[i].initialize();
-
-    debug("Conectando sensor: " + String(i));
+    debug("Intentando conectar sensor: " + String(i));
     if (!sensores[i].testConnection()) {
       debug("Error conectando sensor " + String(i));
-      while (true);  // detener
+      while (true);
     }
 
     const int N = 1000;
@@ -194,6 +208,13 @@ void calibrar(int num) {
     calibracion[i].uz = max(umbralz * scale - fabs(calibracion[i].az), 0.05);
 
     debug("Sensor calibrado: " + String(i));
+    debug("ax: " + String(calibracion[i].ax, 4) + " | " +
+          String(umbralx * scale, 4) + " ux: " + String(calibracion[i].ux, 4));
+    debug("ay: " + String(calibracion[i].ay, 4) + " | " +
+          String(umbraly * scale, 4) + " uy: " + String(calibracion[i].uy, 4));
+    debug("az: " + String(calibracion[i].az, 4) + " | " +
+          String(umbralz * scale, 4) + " uz: " + String(calibracion[i].uz, 4));
+    delay(100);
   }
 }
 
