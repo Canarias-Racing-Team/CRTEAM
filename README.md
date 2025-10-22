@@ -1,5 +1,5 @@
 
-# CRTeam - Sistema de Telemetría
+# CRTeam - Sistema de Telemetría 2024-25
 
 Sistema modular para telemetría en vehículos, que integra sensores de aceleración y comunicación CAN. Utiliza Raspberry Pi, Arduino Nano y Teensy para la adquisición y transmisión de datos, mostrando la información en una pantalla Nextion LCD. El sistema permite monitoreo en tiempo real y es fácilmente adaptable a diferentes configuraciones de hardware.
 
